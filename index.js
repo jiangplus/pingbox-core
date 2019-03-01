@@ -1,9 +1,13 @@
-const { EventEmitter } = require('events')
 const path = require('path')
+const fs = require('fs')
+
+const mkdirp = require('mkdirp')
 
 const pull = require('pull-stream')
 const MRPC = require('muxrpc')
 const MultiServer = require('multiserver')
+
+const Core = require('./src/core')
 
 
 const manifest = {
@@ -11,14 +15,21 @@ const manifest = {
   stuff: 'source',
 }
 
-class Pingbox extends EventEmitter {
+
+class Pingbox extends Core {
   constructor(name, opts={}) {
-    super()
+
+    name = name || 'default'
+    let basedir = path.resolve(opts.basedir || 'data')
+    let dir = path.join(basedir, name)
+    mkdirp(dir)
+
+    super(name, opts)
 
     console.log('started', name, opts)
-    this.name = name || 'default'
-    this.basedir = path.resolve(opts.basedir || 'data')
-    this.dir = path.join(this.basedir, this.name)
+    this.name = name
+    this.basedir = basedir
+    this.dir = dir
     this.port = opts.port
     this.isServer = !!opts.server
 
