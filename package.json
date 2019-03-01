@@ -9,9 +9,9 @@
   "keywords": [],
   "author": "",
   "license": "MIT",
-  "devDependencies": {
-  },
+  "devDependencies": {},
   "dependencies": {
+    "minimist": "^1.2.0",
     "multiserver": "^3.2.0",
     "muxrpc": "^6.4.2"
   }
