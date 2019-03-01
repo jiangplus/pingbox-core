@@ -1,0 +1,16 @@
+#! /usr/bin/env node
+
+const minimist = require('minimist');
+const Pingbox = require('..');
+const argv = minimist(process.argv.slice(2), {
+    alias: { 
+      n: 'name',
+      p: 'port',
+      s: 'server',
+    }
+});
+
+const pingbox = new Pingbox(argv.name, {
+  server: !!argv.server,
+  port: argv.port
+})
