@@ -67,6 +67,4 @@ function timestamp() {
   return adjusted
 }
 
-module.exports = {
-  timestamp
-}
+module.exports = timestamp

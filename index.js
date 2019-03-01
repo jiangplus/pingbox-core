@@ -7,6 +7,7 @@ const pull = require('pull-stream')
 const MRPC = require('muxrpc')
 const MultiServer = require('multiserver')
 
+const crypto = require('./src/lib/crypto')
 const Core = require('./src/core')
 
 
@@ -24,7 +25,11 @@ class Pingbox extends Core {
     let dir = path.join(basedir, name)
     mkdirp(dir)
 
-    super(name, opts)
+
+    let keys = crypto.loadOrCreateSync(path.join('env', name+'.keyjson'))
+    super(name, keys)
+
+    // super(name, opts)
 
     console.log('started', name, opts)
     this.name = name
