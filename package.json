@@ -13,6 +13,7 @@
   "dependencies": {
     "better-sqlite3": "^5.4.0",
     "bs58": "^4.0.1",
+    "cbor": "^4.1.5",
     "chloride": "^2.2.10",
     "minimist": "^1.2.0",
     "mkdirp": "^0.5.1",

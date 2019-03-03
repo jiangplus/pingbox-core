@@ -34,7 +34,8 @@ function encodeMessage (keypair, msg) {
   return msg
 }
 
-function publishMessage (keypair, msgtype, content, state = {seq: 0, previous: null, timestamp: 0}) {
+function publishMessage (keypair, msgtype, content, state) {
+  state = state || {seq: 0, previous: null, timestamp: 0}
   let { seq, previous, timestamp } = state
   let msg = {
     author: keypair.pubkey,
@@ -48,7 +49,7 @@ function publishMessage (keypair, msgtype, content, state = {seq: 0, previous: n
   return encodeMessage(keypair, msg)
 }
 
-function (msg) {
+function verifyMessage (msg) {
   let message = {
     msgtype: msg.msgtype,
     author: bs58.decode(msg.author),

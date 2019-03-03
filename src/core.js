@@ -6,7 +6,11 @@ const db = require('better-sqlite3')
 const migration = fs.readFileSync(path.resolve('./src/schema.sql'), 'utf8')
 
 const timestamp = require('./lib/timestamp')
+const schema = require('./lib/schema')
 
+function isString(s) {
+  return 'string' === typeof s
+}
 
 class Core extends EventEmitter {
   constructor(name, keys, opts={}) {
@@ -14,6 +18,7 @@ class Core extends EventEmitter {
 
     this.name = name
     this.pubkey = keys.pubkey
+    this.keys = keys
     this.db = db(path.join('data', name, '/sqlite3.db'))
     this.db.exec(migration)
     this.createAccount(this.pubkey)

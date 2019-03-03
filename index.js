@@ -8,6 +8,7 @@ const MRPC = require('muxrpc')
 const MultiServer = require('multiserver')
 
 const crypto = require('./src/lib/crypto')
+const schema = require('./src/lib/schema')
 const Core = require('./src/core')
 
 
@@ -35,8 +36,11 @@ class Pingbox extends Core {
     this.name = name
     this.basedir = basedir
     this.dir = dir
-    this.port = opts.port
-    this.isServer = !!opts.server
+    this.port = opts.port || keys.port
+    this.host = opts.host || keys.host
+    this.isServer = opts.server === false ? false : true
+
+    this.clients = []
 
     console.log(this)
     if (this.isServer) {
@@ -48,7 +52,7 @@ class Pingbox extends Core {
 
   startServer() {
     let ms = MultiServer([
-      require('multiserver/plugins/ws')({host: 'localhost', port: 2346})
+      require('multiserver/plugins/ws')({host: 'localhost', port: this.port})
     ])
      let close = ms.server((stream) => {
       let server = MRPC(null, manifest) ({
@@ -71,9 +75,9 @@ class Pingbox extends Core {
 
     let a = client.createStream(console.log.bind(console, 'stream is closed'))
     let ms = MultiServer([
-      require('multiserver/plugins/ws')({host: 'localhost', port: 2346})
+      require('multiserver/plugins/ws')({host: 'localhost', port: this.port})
     ])
-    let abort = ms.client('ws://localhost:2346', (err, stream) => {
+    let abort = ms.client('ws://localhost:'+this.port, (err, stream) => {
       pull(a, stream, a)
 
       client.hello((err, value) => {
@@ -83,6 +87,11 @@ class Pingbox extends Core {
       })
 
     })
+  }
+
+  getClient(pubkey) {
+    if (!pubkey) throw 'pubkey empty'
+    return this.clients.find(e => e.pubkey == pubkey || e.name == pubkey)
   }
 }
 
