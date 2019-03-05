@@ -87,6 +87,13 @@ class Pingbox extends Core {
     return this.clients.find(e => e.pubkey == pubkey || e.name == pubkey)
   }
 
+  setClient(pubkey, client) {
+    let client = this.getClient(pubkey)
+    if (!client) {
+      this.clients.push(client)
+    }
+  }
+
   doConnect(info) {
     let peer = this.addPeer(info)
     console.log(peer)
@@ -114,7 +121,7 @@ class Pingbox extends Core {
         console.log('is tracker')
         client.isTracker = true
       }
-      this.clients.push(client) // todo: remove dup
+      this.setClient(client.pubkey, client)
 
       client.hello({pubkey: this.pubkey, host: this.host, port: this.port}, (err, value) => {
         if(err) throw err
@@ -160,9 +167,6 @@ function testrpc() {
   let bob = new Pingbox('bob')
   let caddy = new Pingbox('caddy')
   let dan = new Pingbox('dan')
-
-  console.log()
-  console.log(bob)
 
   alice.addContact($alice.pubkey, $caddy.pubkey)
   alice.add_samples('hello')
