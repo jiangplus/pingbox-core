@@ -71,8 +71,8 @@ class Pingbox extends Core {
   requestMessage(client, payload) {
     console.log('requesting', payload)
     setTimeout(() => {
-      client.syncClocks(payload, (err, messages) => {
-        messages.map(msg => {
+      client.syncMessage(payload, (err, messages) => {
+        messages.messages.map(msg => {
           this.commitMessage(msg)
         })
       })
@@ -141,7 +141,7 @@ class Pingbox extends Core {
                 }
 
                 if (remoteseq > localseq) {
-                  this.requestMessage(server, {peerkey: server.pubkey, pubkey: pubkey, from: (localseq + 1), to: remoteseq})
+                  this.requestMessage(server, {peesrkey: server.pubkey, pubkey: pubkey, from: (localseq + 1), to: remoteseq})
                   // this.emit('notes', {peerkey: server.pubkey, pubkey: pubkey, from: (localseq + 1), to: remoteseq})
                 }
               }
@@ -151,6 +151,7 @@ class Pingbox extends Core {
 
           let resp = seqs.map(seq => pick(seq, ['pubkey', 'seq']))
           log('resp', resp, seqs)
+
           cb(null, {seqs: resp})
         },
 
@@ -194,6 +195,7 @@ class Pingbox extends Core {
         },
         notifyContact: (req, cb) => {
           // todo: record and send notes
+          console.log('notified', req, cb)
           cb('ok')
         }
       })
@@ -234,8 +236,7 @@ class Pingbox extends Core {
       // client.syncClocks()
 
       client.syncClocks(payload, (err, payload) => {
-
-          console.log('in client clocks', this.name, payload)
+          console.log('in client clocks22', this.name, err, payload)
           let peer = this.getPeer(client.pubkey)
           peer.state_change = timestamp()
 
@@ -271,11 +272,6 @@ class Pingbox extends Core {
           this.updatePeer(peer)
 
       })
-
-      // pull(
-      //   client.syncClocks(payload), 
-      //   pull.drain(console.log)
-      //   )
     })
   }
 
