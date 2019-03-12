@@ -21,7 +21,8 @@ const manifest = {
   hello: 'async',
   stuff: 'source',
   syncClocks: 'async',
-  syncMessage: 'async',
+  syncMessages: 'async',
+  notifyContact: 'async',
 }
 
 
@@ -71,7 +72,7 @@ class Pingbox extends Core {
   requestMessage(client, payload) {
     console.log('requesting', payload)
     setTimeout(() => {
-      client.syncMessage(payload, (err, messages) => {
+      client.syncMessages(payload, (err, messages) => {
         messages.messages.map(msg => {
           this.commitMessage(msg)
         })
@@ -141,7 +142,7 @@ class Pingbox extends Core {
                 }
 
                 if (remoteseq > localseq) {
-                  this.requestMessage(server, {peesrkey: server.pubkey, pubkey: pubkey, from: (localseq + 1), to: remoteseq})
+                  this.requestMessage(server, {peerkey: server.pubkey, pubkey: pubkey, from: (localseq + 1), to: remoteseq})
                   // this.emit('notes', {peerkey: server.pubkey, pubkey: pubkey, from: (localseq + 1), to: remoteseq})
                 }
               }
@@ -155,7 +156,7 @@ class Pingbox extends Core {
           cb(null, {seqs: resp})
         },
 
-        syncMessage: (seq, cb) => {
+        syncMessages: (seq, cb) => {
           let messages
           if (seq.from && seq.to) {
             messages = this.getAccountMessages(seq.pubkey, seq.from, seq.to).map(msg => {
@@ -236,7 +237,7 @@ class Pingbox extends Core {
       // client.syncClocks()
 
       client.syncClocks(payload, (err, payload) => {
-          console.log('in client clocks22', this.name, err, payload)
+          console.log('in client', this.name, err, payload)
           let peer = this.getPeer(client.pubkey)
           peer.state_change = timestamp()
 
@@ -301,6 +302,12 @@ class Pingbox extends Core {
 module.exports = Pingbox
 
 function testrpc() {
+
+  try { fs.unlinkSync('data/alice/sqlite3.db') } catch (err) { log(err) }
+  try { fs.unlinkSync('data/bob/sqlite3.db')   } catch (err) { log(err) }
+  try { fs.unlinkSync('data/caddy/sqlite3.db') } catch (err) { log(err) }
+  try { fs.unlinkSync('data/dan/sqlite3.db')   } catch (err) { log(err) }
+
   let $alice = crypto.loadOrCreateSync('env/alice.keyjson')
   let $bob   = crypto.loadOrCreateSync('env/bob.keyjson')
   let $caddy = crypto.loadOrCreateSync('env/caddy.keyjson')
