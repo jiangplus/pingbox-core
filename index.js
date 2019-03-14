@@ -97,18 +97,14 @@ class Pingbox extends Core {
           return pull.values([1, 2, 3, 4, 5])
         },
         syncClocks: (payload, cb) => {
-          console.log('receive', payload)
-
-          console.log('in client clocks', this.name, payload)
+          console.log('server receive clocks', this.name, payload)
           let peer = this.getPeer(server.pubkey)
           peer.state_change = timestamp()
 
           let old_local_latest = peer.local_latest
           peer.local_latest = this.getLocalLatest()
           let seq_range = payload.seqs.map(e => e.pubkey).concat(Object.keys(peer.state))
-          // let seqs = this.getSeqs()
           let seqs = this.getSeqs(0, seq_range)
-          let popnotes = []
 
           diffloop(
             pooling(seqs), 
@@ -118,16 +114,14 @@ class Pingbox extends Core {
               if (localseq !== null) {
                 if (remoteseq !== null) {
                   if (peerseq === null || peerseq === -1) {
-                    server.notifyContact({pubkey: pubkey, seq: localseq}, (err, payload) => {
-                      // noop
-                    })
+                    server.notifyContact({pubkey: pubkey, seq: localseq}, (err, payload) => { /* noop */ })
                   }
 
                   peer.state[pubkey] = remoteseq
-                }
 
-                if (remoteseq > localseq) {
-                  this.requestMessage(server, {peerkey: server.pubkey, pubkey: pubkey, from: (localseq + 1), to: remoteseq})
+                  if (remoteseq > localseq) {
+                    this.requestMessage(server, {peerkey: server.pubkey, pubkey: pubkey, from: (localseq + 1), to: remoteseq})
+                  }
                 }
               }
           })
@@ -135,21 +129,16 @@ class Pingbox extends Core {
           this.updatePeer(peer)
 
           let resp = seqs.map(seq => pick(seq, ['pubkey', 'seq']))
-          log('resp', resp, seqs)
-
+          // log('resp', resp, seqs)
           cb(null, {seqs: resp})
         },
 
         syncMessages: (seq, cb) => {
           let messages
           if (seq.from && seq.to) {
-            messages = this.getAccountMessages(seq.pubkey, seq.from, seq.to).map(msg => {
-              // msg.content = JSON.parse(msg.content)
-              msg = pick(msg, ['key', 'author', 'previous', 'seq', 'timestamp', 'content', 'msgtype', 'sig'])
-              // msg.previous = msg.previous || undefined
-
-              console.log('logger', msg)
-              return msg
+            messages = this.getAccountMessages(seq.pubkey, seq.from, seq.to).map(message => {
+              message = pick(message, ['key', 'author', 'previous', 'seq', 'timestamp', 'content', 'msgtype', 'sig'])
+              return message
             })
           } else if (seq.key) {
             let message = this.getMessage(seq.key)
@@ -180,7 +169,7 @@ class Pingbox extends Core {
         },
         notifyContact: (req, cb) => {
           // todo: record and send notes
-          console.log('notified', req, cb)
+          // console.log('notified', req, cb)
           cb('ok')
         }
       })
@@ -242,16 +231,15 @@ class Pingbox extends Core {
                   }
 
                   peer.state[pubkey] = remoteseq
-                }
 
-                if (remoteseq > localseq) {
-                  this.requestMessage(client, {peerkey: client.pubkey, pubkey: pubkey, from: (localseq + 1), to: remoteseq})
+                  if (remoteseq > localseq) {
+                    this.requestMessage(client, {peerkey: client.pubkey, pubkey: pubkey, from: (localseq + 1), to: remoteseq})
+                  }
                 }
               }
           })
 
           this.updatePeer(peer)
-
       })
     })
   }
