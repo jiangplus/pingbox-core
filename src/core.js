@@ -230,10 +230,8 @@ class Core extends EventEmitter {
     this.pubMessage('post', { title: title })
   }
 
-  add_samples() {
-    this.newPost('hello')
-    this.newPost('hello')
-    this.newPost('hello')
+  add_samples(title) {
+    this.newPost(title || 'hello')
   }
 }
 

@@ -1,5 +1,7 @@
 const path = require('path')
 const fs = require('fs')
+const { promisify } = require('util')
+const timeout = promisify(setTimeout)
 
 const mkdirp = require('mkdirp')
 
@@ -157,111 +159,112 @@ class Pingbox extends Core {
     })
   }
 
-  doConnect(info) {
-    let peer = this.addPeer(info)
-    console.log('peer', peer)
+  async doConnect(info) {
+      let peer = this.addPeer(info)
+      console.log('peer', peer)
 
-    let client = MRPC(manifest, manifest) ({
-        hello: (req, cb) => {
-          console.log('req', req)
-          cb(null, ('welcome from client'))
-        },
-        stuff: () => {
-          return pull.values([1, 2, 3, 4, 5])
-        },
-        notifyContact: (req, cb) => {
-          // todo: record and send notes
-          // console.log('notified', req, cb)
-          cb('ok')
-        },
-        syncMessages: (seq, cb) => {
-          let messages
-          if (seq.from && seq.to) {
-            messages = this.getAccountMessages(seq.pubkey, seq.from, seq.to).map(message => {
+      let client = MRPC(manifest, manifest) ({
+          hello: (req, cb) => {
+            console.log('req', req)
+            cb(null, ('welcome from client'))
+          },
+          stuff: () => {
+            return pull.values([1, 2, 3, 4, 5])
+          },
+          notifyContact: (req, cb) => {
+            // todo: record and send notes
+            // console.log('notified', req, cb)
+            cb('ok')
+          },
+          syncMessages: (seq, cb) => {
+            let messages
+            if (seq.from && seq.to) {
+              messages = this.getAccountMessages(seq.pubkey, seq.from, seq.to).map(message => {
+                message = pick(message, ['key', 'author', 'previous', 'seq', 'timestamp', 'content', 'msgtype', 'sig'])
+                return message
+              })
+            } else if (seq.key) {
+              let message = this.getMessage(seq.key)
               message = pick(message, ['key', 'author', 'previous', 'seq', 'timestamp', 'content', 'msgtype', 'sig'])
-              return message
-            })
-          } else if (seq.key) {
-            let message = this.getMessage(seq.key)
-            message = pick(message, ['key', 'author', 'previous', 'seq', 'timestamp', 'content', 'msgtype', 'sig'])
-            messages = [message]
+              messages = [message]
+            }
+
+            cb(null, {messages: messages})
           }
+        })
 
-          cb(null, {messages: messages})
+      let a = client.createStream(console.log.bind(console, 'stream is closed'))
+      let ms = MultiServer([
+        require('multiserver/plugins/ws')({host: 'localhost', port: peer.port})
+      ])
+      let abort = ms.client('ws://localhost:'+peer.port, (err, stream) => {
+        pull(a, stream, a)
+
+        client.name = info.name || null
+        client.pubkey = info.pubkey
+        client.isClient = true
+        if (info.isTracker) {
+          client.isTracker = true
         }
+        this.setClient(client.pubkey, client)
+
+        client.hello({pubkey: this.pubkey, host: this.host, port: this.port}, (err, value) => {
+          if(err) throw err
+
+          if (client.isTracker) {
+            // todo doSyncPeer
+          } else {
+            this.doSync(peer, client, () => {
+            })
+          }
+        })
       })
-
-    let a = client.createStream(console.log.bind(console, 'stream is closed'))
-    let ms = MultiServer([
-      require('multiserver/plugins/ws')({host: 'localhost', port: peer.port})
-    ])
-    let abort = ms.client('ws://localhost:'+peer.port, (err, stream) => {
-      pull(a, stream, a)
-
-      client.name = info.name || null
-      client.pubkey = info.pubkey
-      client.isClient = true
-      if (info.isTracker) {
-        client.isTracker = true
-      }
-      this.setClient(client.pubkey, client)
-
-      client.hello({pubkey: this.pubkey, host: this.host, port: this.port}, (err, value) => {
-        if(err) throw err
-
-        if (client.isTracker) {
-          // todo doSyncPeer
-        } else {
-          this.doSync(peer, client)
-        }
-      })
-
-    })
   }
 
-  doSync(peer, client) {
-      console.log('do sync')
-      let old_local_latest = peer.local_latest
-      let new_local_latest = this.getLocalLatest()
-      peer.local_latest = new_local_latest
+  doSync(peer, client, callback) {
+    console.log('do sync')
+    let old_local_latest = peer.local_latest
+    let new_local_latest = this.getLocalLatest()
+    peer.local_latest = new_local_latest
 
-      let range = isEmpty(peer.state) ? Object.keys(peer.state) : null
-      let seqs = this.getSeqs(old_local_latest, range)
-      let payload = {seqs: seqs}
-      console.log('payload', payload)
+    let range = isEmpty(peer.state) ? Object.keys(peer.state) : null
+    let seqs = this.getSeqs(old_local_latest, range)
+    let payload = {seqs: seqs}
+    console.log('payload', payload)
 
-      client.syncClocks(payload, (err, payload) => {
-          console.log('in client', this.name, err, payload)
-          peer.state_change = timestamp()
+    client.syncClocks(payload, (err, payload) => {
+        console.log('in client', this.name, err, payload)
+        peer.state_change = timestamp()
 
-          let seqs = this.getSeqs(0)
-          let localseqs = pooling(seqs)
-          let remoteseqs = pooling(payload.seqs)
-          console.log('my seqs', seqs)
+        let seqs = this.getSeqs(0)
+        let localseqs = pooling(seqs)
+        let remoteseqs = pooling(payload.seqs)
+        console.log('my seqs', seqs)
 
-          for (let seq of payload.seqs) {
-            let pubkey = seq.pubkey
-            let remoteseq = seq.seq
-            let localseq = localseqs[pubkey]
-            let peerseq = peer.state[pubkey]
-            console.log(localseq, remoteseq, peerseq)
+        for (let seq of payload.seqs) {
+          let pubkey = seq.pubkey
+          let remoteseq = seq.seq
+          let localseq = localseqs[pubkey]
+          let peerseq = peer.state[pubkey]
+          console.log(localseq, remoteseq, peerseq)
 
-            peer.state[pubkey] = remoteseq
+          peer.state[pubkey] = remoteseq
 
-            if (localseq !== undefined && remoteseq > localseq) {
-              this.requestMessage(client, {
-                peerkey: client.pubkey, 
-                pubkey: pubkey, 
-                from: (localseq + 1), 
-                to: remoteseq
-              })
-            }
+          if (localseq !== undefined && remoteseq > localseq) {
+            this.requestMessage(client, {
+              peerkey: client.pubkey, 
+              pubkey: pubkey, 
+              from: (localseq + 1), 
+              to: remoteseq
+            })
           }
+        }
 
-          this.updatePeer(peer)
-          console.log('new peer', peer)
-      })
+        this.updatePeer(peer)
+        console.log('new peer', peer)
+    })
 
+    callback()
   }
 
   startClient() {
@@ -289,7 +292,7 @@ class Pingbox extends Core {
 
 module.exports = Pingbox
 
-function testrpc() {
+async function testrpc() {
 
   try { fs.unlinkSync('data/alice/sqlite3.db') } catch (err) { log(err) }
   try { fs.unlinkSync('data/bob/sqlite3.db')   } catch (err) { log(err) }
@@ -320,9 +323,30 @@ function testrpc() {
   dan.addContact($dan.pubkey, $alice.pubkey)
   dan.add_samples('hello')
 
-  console.log('alice', alice.getMessages())
 
-  bob.doConnect(alice)
+  await bob.doConnect(alice)
+
+  await timeout(1000)
+
+  // console.log('alice', alice.getMessages())s
+
+  await caddy.doConnect(bob)
+  await timeout(1000)
+  // console.log('caddy', caddy.getMessages())
+
+  alice.add_samples('world')
+
+
+  await timeout(10000)
+  console.log('---------------')
+  console.log('---------------')
+
+  await bob.doConnect(alice)
+  await timeout(1000)
+  console.log('bob', bob.getMessages())
+
+
+
   
 }
 
