@@ -228,9 +228,11 @@ class Pingbox extends Core {
     peer.local_latest = new_local_latest
 
     let range = isEmpty(peer.state) ? Object.keys(peer.state) : null
-    let seqs = this.getSeqs(old_local_latest, range)
+    // let seqs = this.getSeqs(old_local_latest, range)
+    let seqs = this.getSeqs(0, range)
     let payload = {seqs: seqs}
     console.log('payload', payload)
+    console.log('range', range)
 
     client.syncClocks(payload, (err, payload) => {
         console.log('in client', this.name, err, payload)
@@ -328,23 +330,28 @@ async function testrpc() {
 
   await timeout(1000)
 
-  // console.log('alice', alice.getMessages())s
+  // console.log('alice', alice.getMessages())
 
-  await caddy.doConnect(bob)
+  await alice.doConnect(caddy)
   await timeout(1000)
-  // console.log('caddy', caddy.getMessages())
+  // console.log('alice', alice.getMessages())
 
   alice.add_samples('world')
+  await timeout(1000)
+
+  await bob.doConnect(alice)
+  await timeout(1000)
+  console.log('bob', bob.getMessages())
 
 
-  await timeout(10000)
+  alice.add_samples('new world')
+  await timeout(2000)
   console.log('---------------')
   console.log('---------------')
 
   await bob.doConnect(alice)
   await timeout(1000)
   console.log('bob', bob.getMessages())
-
 
 
   

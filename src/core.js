@@ -68,17 +68,19 @@ class Core extends EventEmitter {
     let ret
     if (range) {
       let params = '?,'.repeat(range.length).slice(0, -1)
+      range = Array.from(range)
       range.unshift(since)
       range.push(since)
+
       ret = this.db
-          .prepare("SELECT pubkey, seq from accounts WHERE (updated >= ? AND following = 1 AND pubkey in ("+params+")) OR changed > ? ORDER BY created ASC")
+          .prepare("SELECT pubkey, seq from accounts WHERE (updated >= ? AND following = 1 AND pubkey in ("+params+")) OR changed >= ? ORDER BY created ASC")
           .all(range)
-      return ret
     } else {
       ret = this.db
           .prepare("SELECT pubkey, seq from accounts WHERE (updated >= @since AND following = 1) OR changed > @since ORDER BY created ASC")
           .all({since, range})
     }
+
     return ret
   }
 
